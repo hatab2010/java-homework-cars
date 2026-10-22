@@ -11,6 +11,11 @@
     <artifactId>cars-presentation</artifactId>
     <dependencies>
         <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>ru.urfu</groupId>
             <artifactId>cars-domain</artifactId>
         </dependency>

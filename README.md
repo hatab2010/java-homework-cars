@@ -15,3 +15,11 @@
 ```sh
 mvn verify
 ```
+
+Запуск консольного меню из корня проекта после сборки:
+
+```sh
+java -jar bootstrap/target/cars-bootstrap-1.0-SNAPSHOT.jar
+```
+
+Файл примера в меню: `examples/cars.csv`. Для выхода выберите `0`.
