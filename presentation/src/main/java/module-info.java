@@ -1,4 +1,4 @@
-module ru.urfu.cars.presentation {
-    requires ru.urfu.cars.domain;
-    requires ru.urfu.cars.application;
+module presentation {
+    requires domain;
+    requires application;
 }

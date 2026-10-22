@@ -1,2 +1,3 @@
-module ru.urfu.cars.domain {
+module domain {
+    exports domain;
 }

@@ -9,4 +9,11 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
     <artifactId>cars-domain</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>
