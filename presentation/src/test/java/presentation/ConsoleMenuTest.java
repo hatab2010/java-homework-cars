@@ -9,6 +9,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -50,7 +51,7 @@ class ConsoleMenuTest {
         CarService service = new CarService(path -> {
             assertEquals(Path.of("folder with spaces/cars.csv"), path);
             return List.of(car);
-        });
+        }, new ArrayList<>());
 
         String output = run("2\nfolder with spaces/cars.csv\n3\n0\n", service);
 
@@ -63,7 +64,7 @@ class ConsoleMenuTest {
     void reportsFileFailureAndContinuesWithExistingCars() {
         CarService service = new CarService(path -> {
             throw new CarLoadException("Строка 2: некорректный год");
-        });
+        }, new ArrayList<>());
         Car existing = new Car("Existing", 90, 2015);
         service.add(existing);
 
@@ -80,7 +81,7 @@ class ConsoleMenuTest {
     void rejectsInvalidPathBeforeLoading(String path) {
         CarService service = new CarService(source -> {
             throw new AssertionError("Загрузчик не должен вызываться");
-        });
+        }, new ArrayList<>());
 
         String output = run("2\n" + path + "\n0\n", service);
 
@@ -154,7 +155,7 @@ class ConsoleMenuTest {
     }
 
     private CarService emptyService() {
-        return new CarService(path -> List.of());
+        return new CarService(path -> List.of(), new ArrayList<>());
     }
 
     private String run(String input, CarService service) {

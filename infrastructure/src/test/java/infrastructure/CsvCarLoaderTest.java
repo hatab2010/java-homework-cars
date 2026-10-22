@@ -102,7 +102,7 @@ class CsvCarLoaderTest {
     @Test
     void invalidFileDoesNotAddEvenItsValidPrefixToService() throws Exception {
         Car existing = new Car("Existing", 90, 2015);
-        CarService service = new CarService(loader);
+        CarService service = new CarService(loader, new CustomArrayList<>());
         service.add(existing);
         Path file = write("Camry;181;2019\nVesta;invalid;2020\n");
 
@@ -113,11 +113,57 @@ class CsvCarLoaderTest {
 
     @Test
     void loadsIntoServiceAcrossApplicationBoundary() throws Exception {
-        CarService service = new CarService(loader);
+        CarService service = new CarService(loader, new CustomArrayList<>());
         Path file = write("Camry;181;2019\nVesta;106;2020\n");
 
         assertEquals(2, service.loadFrom(file));
         assertEquals(List.of("Camry", "Vesta"), service.getModelNamesByMinimumPower(100));
+    }
+
+    @Test
+    void customStorageGrowsAcrossManualAdditionAndRepeatedFileLoads() throws Exception {
+        List<Car> storage = new CustomArrayList<>(0);
+        CarService service = new CarService(loader, storage);
+        Car manual = new Car("Manual", 90, 2020);
+        service.add(manual);
+        List<Car> beforeLoading = service.getAll();
+        StringBuilder content = new StringBuilder();
+        for (int i = 0; i < 25; i++) {
+            content.append("Car ").append(i).append(';').append(100 + i)
+                    .append(';').append(2000 + i % 20).append('\n');
+        }
+        Path file = write(content.toString());
+
+        assertEquals(25, service.loadFrom(file));
+        assertEquals(25, service.loadFrom(file));
+
+        assertEquals(51, storage.size());
+        assertEquals(service.getAll(), storage);
+        assertEquals(manual, storage.get(0));
+        assertEquals(new Car("Car 0", 100, 2000), storage.get(1));
+        assertEquals(new Car("Car 0", 100, 2000), storage.get(26));
+        assertEquals(new Car("Car 24", 124, 2004), storage.get(50));
+        assertEquals(List.of(manual), beforeLoading);
+        assertEquals(List.of("Car 20", "Car 20", "Car 21", "Car 21", "Car 22", "Car 22",
+                "Car 23", "Car 23", "Car 24", "Car 24"), service.getModelNamesByMinimumPower(120));
+        assertThrows(UnsupportedOperationException.class, () -> service.getAll().clear());
+        assertEquals(51, storage.size());
+    }
+
+    @Test
+    void invalidRecordAfterValidPrefixDoesNotChangeCustomStorage() throws Exception {
+        List<Car> storage = new CustomArrayList<>(0);
+        CarService service = new CarService(loader, storage);
+        Car existing = new Car("Existing", 90, 2015);
+        service.add(existing);
+        String content = "Vesta;106;2020\n".repeat(25) + "Broken;invalid;2020\n";
+
+        CarLoadException error = assertThrows(CarLoadException.class,
+                () -> service.loadFrom(write(content)));
+
+        assertTrue(error.getMessage().startsWith("Строка 26:"));
+        assertEquals(List.of(existing), storage);
+        assertEquals(List.of(existing), service.getAll());
     }
 
     private Path write(String content) throws IOException {

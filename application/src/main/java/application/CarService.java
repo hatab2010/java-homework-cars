@@ -1,6 +1,5 @@
 package application;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -9,11 +8,14 @@ import domain.Car;
 
 /** Прикладные операции добавления, просмотра и обработки автомобилей. */
 public final class CarService {
-    private final List<Car> cars = new ArrayList<>();
+    private final List<Car> cars;
     private final CarLoader carLoader;
 
-    public CarService(CarLoader carLoader) {
+    /** Переданная изменяемая коллекция становится хранилищем сервиса без копирования. */
+    public CarService(CarLoader carLoader, List<Car> cars) {
         this.carLoader = Objects.requireNonNull(carLoader, "Загрузчик не должен быть null");
+        this.cars = Objects.requireNonNull(cars, "Коллекция автомобилей не должна быть null");
+        cars.forEach(car -> Objects.requireNonNull(car, "Автомобиль не должен быть null"));
     }
 
     /** Добавляет все прочитанные автомобили. При ошибке загрузки состояние не меняется. */

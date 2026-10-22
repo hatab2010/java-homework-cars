@@ -1,6 +1,7 @@
 package application;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import domain.Car;
@@ -14,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 class CarServiceTest {
     @Test
     void emptyCatalogProducesEmptyResults() {
-        CarService service = new CarService(path -> List.of());
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
 
         assertTrue(service.getAll().isEmpty());
         assertTrue(service.findByMinimumPower(100).isEmpty());
@@ -23,7 +24,7 @@ class CarServiceTest {
 
     @Test
     void preservesInsertionOrderAndDuplicates() {
-        CarService service = new CarService(path -> List.of());
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
         Car car = new Car("Lada Vesta", 106, 2020);
         service.add(car);
         service.add(car);
@@ -33,7 +34,7 @@ class CarServiceTest {
 
     @Test
     void rejectsNullWithoutChangingCatalog() {
-        CarService service = new CarService(path -> List.of());
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
 
         assertThrows(NullPointerException.class, () -> service.add(null));
         assertTrue(service.getAll().isEmpty());
@@ -41,7 +42,7 @@ class CarServiceTest {
 
     @Test
     void returnsImmutableSnapshotIndependentOfLaterAdditions() {
-        CarService service = new CarService(path -> List.of());
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
         Car first = new Car("Lada Vesta", 106, 2020);
         Car second = new Car("Toyota Camry", 181, 2019);
         service.add(first);
@@ -56,7 +57,7 @@ class CarServiceTest {
 
     @Test
     void filtersAtInclusivePowerBoundaryAndSortsByYearWithoutMutatingCatalog() {
-        CarService service = new CarService(path -> List.of());
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
         Car newer = new Car("New", 200, 2022);
         Car excluded = new Car("Weak", 99, 2010);
         Car boundary = new Car("Boundary", 100, 2018);
@@ -71,7 +72,7 @@ class CarServiceTest {
 
     @Test
     void mapsFilteredAndSortedCarsToModelNamesKeepingDuplicates() {
-        CarService service = new CarService(path -> List.of());
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
         service.add(new Car("Camry", 200, 2022));
         service.add(new Car("Excluded", 90, 2010));
         service.add(new Car("Vesta", 106, 2020));
@@ -82,7 +83,7 @@ class CarServiceTest {
 
     @Test
     void zeroThresholdIncludesEveryCar() {
-        CarService service = new CarService(path -> List.of());
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
         Car car = new Car("Test", 1, 2020);
         service.add(car);
 
@@ -91,7 +92,7 @@ class CarServiceTest {
 
     @Test
     void rejectsNegativeThresholdEvenForEmptyCatalog() {
-        CarService service = new CarService(path -> List.of());
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
 
         assertThrows(IllegalArgumentException.class, () -> service.findByMinimumPower(-1));
         assertThrows(IllegalArgumentException.class, () -> service.getModelNamesByMinimumPower(-1));
@@ -99,7 +100,7 @@ class CarServiceTest {
 
     @Test
     void processedResultsCannotBeModified() {
-        CarService service = new CarService(path -> List.of());
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
         service.add(new Car("Vesta", 106, 2020));
 
         assertThrows(UnsupportedOperationException.class, () -> service.findByMinimumPower(0).clear());
@@ -116,7 +117,7 @@ class CarServiceTest {
         CarService service = new CarService(path -> {
             assertEquals(file, path);
             return List.of(loaded, existing);
-        });
+        }, new ArrayList<>());
         service.add(existing);
 
         int count = service.loadFrom(file);
@@ -127,7 +128,7 @@ class CarServiceTest {
 
     @Test
     void emptySourceDoesNotClearExistingCars() throws CarLoadException {
-        CarService service = new CarService(path -> List.of());
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
         Car existing = new Car("Vesta", 106, 2020);
         service.add(existing);
 
@@ -140,7 +141,7 @@ class CarServiceTest {
         CarLoadException failure = new CarLoadException("Не удалось загрузить данные");
         CarService service = new CarService(path -> {
             throw failure;
-        });
+        }, new ArrayList<>());
         Car existing = new Car("Vesta", 106, 2020);
         service.add(existing);
 
@@ -153,13 +154,39 @@ class CarServiceTest {
 
     @Test
     void rejectsMissingLoader() {
-        assertThrows(NullPointerException.class, () -> new CarService(null));
+        assertThrows(NullPointerException.class, () -> new CarService(null, new ArrayList<>()));
     }
 
     @Test
     void rejectsMissingPathBeforeCallingLoader() {
-        CarService service = new CarService(path -> fail("Загрузчик не должен вызываться"));
+        CarService service = new CarService(path -> fail("Загрузчик не должен вызываться"), new ArrayList<>());
 
         assertThrows(NullPointerException.class, () -> service.loadFrom(null));
+    }
+
+    @Test
+    void usesProvidedStorageAndKeepsItsExistingCars() {
+        Car existing = new Car("Vesta", 106, 2020);
+        Car added = new Car("Camry", 181, 2019);
+        List<Car> storage = new ArrayList<>(List.of(existing));
+        CarService service = new CarService(path -> List.of(), storage);
+
+        service.add(added);
+
+        assertEquals(List.of(existing, added), storage);
+        assertEquals(List.of(existing, added), service.getAll());
+    }
+
+    @Test
+    void rejectsMissingStorage() {
+        assertThrows(NullPointerException.class, () -> new CarService(path -> List.of(), null));
+    }
+
+    @Test
+    void rejectsStorageContainingNull() {
+        List<Car> storage = new ArrayList<>();
+        storage.add(null);
+
+        assertThrows(NullPointerException.class, () -> new CarService(path -> List.of(), storage));
     }
 }
