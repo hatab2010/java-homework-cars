@@ -35,11 +35,14 @@ public final class ConsoleMenu {
                         case "2" -> loadFile();
                         case "3" -> showCars();
                         case "4" -> processCars();
+                        case "5" -> showCar();
+                        case "6" -> removeCar();
+                        case "7" -> output.println("Количество автомобилей: " + service.size());
                         case "0" -> {
                             output.println("Работа завершена.");
                             return;
                         }
-                        default -> output.println("Неизвестная команда. Выберите пункт от 0 до 4.");
+                        default -> output.println("Неизвестная команда. Выберите пункт от 0 до 7.");
                     }
                 } catch (CarLoadException | IllegalArgumentException error) {
                     output.println("Ошибка: " + error.getMessage());
@@ -61,6 +64,9 @@ public final class ConsoleMenu {
         output.println("2. Загрузить автомобили из файла");
         output.println("3. Показать все автомобили");
         output.println("4. Отобрать по мощности и отсортировать по году");
+        output.println("5. Показать автомобиль по номеру");
+        output.println("6. Удалить автомобиль по номеру");
+        output.println("7. Показать количество автомобилей");
         output.println("0. Выход");
     }
 
@@ -88,9 +94,39 @@ public final class ConsoleMenu {
             return;
         }
         for (int i = 0; i < cars.size(); i++) {
-            Car car = cars.get(i);
-            output.printf("%d. %s — %d л. с., %d г.%n", i + 1, car.model(), car.powerHp(), car.year());
+            printCar(i + 1, cars.get(i));
         }
+    }
+
+    private void showCar() throws IOException {
+        if (service.size() == 0) {
+            output.println("Список автомобилей пуст.");
+            return;
+        }
+        int index = readCarIndex();
+        printCar(index + 1, service.get(index));
+    }
+
+    private void removeCar() throws IOException {
+        if (service.size() == 0) {
+            output.println("Список автомобилей пуст.");
+            return;
+        }
+        Car removed = service.remove(readCarIndex());
+        output.println("Удалён автомобиль: " + removed.model() + ".");
+    }
+
+    private int readCarIndex() throws IOException {
+        int number = readInteger("Номер автомобиля: ");
+        int count = service.size();
+        if (number < 1 || number > count) {
+            throw new IllegalArgumentException("Номер автомобиля должен быть от 1 до " + count);
+        }
+        return number - 1;
+    }
+
+    private void printCar(int number, Car car) {
+        output.printf("%d. %s — %d л. с., %d г.%n", number, car.model(), car.powerHp(), car.year());
     }
 
     private void processCars() throws IOException {

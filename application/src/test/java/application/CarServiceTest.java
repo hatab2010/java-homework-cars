@@ -178,6 +178,26 @@ class CarServiceTest {
     }
 
     @Test
+    void removingOneDuplicateUpdatesIndicesAndCountButKeepsEarlierSnapshot() {
+        Car duplicate = new Car("Vesta", 106, 2020);
+        Car last = new Car("Camry", 181, 2019);
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
+        service.add(duplicate);
+        service.add(duplicate);
+        service.add(last);
+        List<Car> snapshot = service.getAll();
+
+        assertEquals(duplicate, service.remove(1));
+
+        assertEquals(2, service.size());
+        assertEquals(duplicate, service.get(0));
+        assertEquals(last, service.get(1));
+        assertEquals(List.of(duplicate, last), service.getAll());
+        assertEquals(List.of(duplicate, duplicate, last), snapshot);
+        assertEquals(List.of("Camry", "Vesta"), service.getModelNamesByMinimumPower(100));
+    }
+
+    @Test
     void rejectsMissingStorage() {
         assertThrows(NullPointerException.class, () -> new CarService(path -> List.of(), null));
     }

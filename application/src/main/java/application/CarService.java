@@ -30,6 +30,20 @@ public final class CarService {
         cars.add(Objects.requireNonNull(car, "Автомобиль не должен быть null"));
     }
 
+    /** Индекс начинается с нуля и соответствует порядку добавления. */
+    public Car get(int index) {
+        return cars.get(index);
+    }
+
+    /** Удаляет по индексу с нуля и возвращает удалённый автомобиль. */
+    public Car remove(int index) {
+        return cars.remove(index);
+    }
+
+    public int size() {
+        return cars.size();
+    }
+
     /** Независимый неизменяемый снимок в порядке добавления. */
     public List<Car> getAll() {
         return List.copyOf(cars);
