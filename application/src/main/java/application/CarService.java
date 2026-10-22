@@ -1,5 +1,8 @@
 package application;
 
+import application.port.CarLoader;
+import application.port.SortAlgorithm;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -47,6 +50,19 @@ public final class CarService {
     /** Независимый неизменяемый снимок в порядке добавления. */
     public List<Car> getAll() {
         return List.copyOf(cars);
+    }
+
+    /** Сортирует копию данных, сохраняя номера автомобилей в основном списке. */
+    public List<Car> getSortedByYear(SortAlgorithm algorithm, SortDirection direction) {
+        Objects.requireNonNull(algorithm, "Алгоритм сортировки не должен быть null");
+        Objects.requireNonNull(direction, "Направление сортировки не должно быть null");
+        Comparator<Car> comparator = Comparator.comparingInt(Car::year);
+        if (direction == SortDirection.DESCENDING) {
+            comparator = comparator.reversed();
+        }
+        List<Car> sorted = new ArrayList<>(cars);
+        algorithm.sort(sorted, comparator);
+        return List.copyOf(sorted);
     }
 
     /** Нижняя граница мощности включается; при одинаковом годе сохраняется порядок добавления. */

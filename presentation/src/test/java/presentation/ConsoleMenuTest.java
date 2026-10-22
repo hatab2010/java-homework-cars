@@ -2,6 +2,7 @@ package presentation;
 
 import application.CarLoadException;
 import application.CarService;
+import application.port.SortAlgorithm;
 import domain.Car;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -10,6 +11,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -258,7 +260,8 @@ class ConsoleMenuTest {
         StringWriter output = new StringWriter();
         CarService service = emptyService();
 
-        new ConsoleMenu(service, brokenInput, new PrintWriter(output)).run();
+        new ConsoleMenu(service, new UnusedSortAlgorithm(), new UnusedSortAlgorithm(),
+                brokenInput, new PrintWriter(output)).run();
 
         assertTrue(output.toString().contains("Ошибка чтения ввода: Поток недоступен"));
         assertTrue(service.getAll().isEmpty());
@@ -270,7 +273,15 @@ class ConsoleMenuTest {
 
     private String run(String input, CarService service) {
         StringWriter output = new StringWriter();
-        new ConsoleMenu(service, new StringReader(input), new PrintWriter(output)).run();
+        new ConsoleMenu(service, new UnusedSortAlgorithm(), new UnusedSortAlgorithm(),
+                new StringReader(input), new PrintWriter(output)).run();
         return output.toString();
+    }
+
+    private static final class UnusedSortAlgorithm implements SortAlgorithm {
+        @Override
+        public <T> void sort(List<T> items, Comparator<? super T> comparator) {
+            throw new AssertionError("В этом сценарии сортировка не ожидается");
+        }
     }
 }
