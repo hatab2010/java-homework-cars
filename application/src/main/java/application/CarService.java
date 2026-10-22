@@ -4,11 +4,25 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.nio.file.Path;
 import domain.Car;
 
 /** Прикладные операции добавления, просмотра и обработки автомобилей. */
 public final class CarService {
     private final List<Car> cars = new ArrayList<>();
+    private final CarLoader carLoader;
+
+    public CarService(CarLoader carLoader) {
+        this.carLoader = Objects.requireNonNull(carLoader, "Загрузчик не должен быть null");
+    }
+
+    /** Добавляет все прочитанные автомобили. При ошибке загрузки состояние не меняется. */
+    public int loadFrom(Path path) throws CarLoadException {
+        Objects.requireNonNull(path, "Путь не должен быть null");
+        List<Car> loaded = List.copyOf(carLoader.load(path));
+        cars.addAll(loaded);
+        return loaded.size();
+    }
 
     public void add(Car car) {
         cars.add(Objects.requireNonNull(car, "Автомобиль не должен быть null"));
