@@ -9,6 +9,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -50,7 +51,7 @@ class ConsoleMenuTest {
         CarService service = new CarService(path -> {
             assertEquals(Path.of("folder with spaces/cars.csv"), path);
             return List.of(car);
-        });
+        }, new ArrayList<>());
 
         String output = run("2\nfolder with spaces/cars.csv\n3\n0\n", service);
 
@@ -63,7 +64,7 @@ class ConsoleMenuTest {
     void reportsFileFailureAndContinuesWithExistingCars() {
         CarService service = new CarService(path -> {
             throw new CarLoadException("Строка 2: некорректный год");
-        });
+        }, new ArrayList<>());
         Car existing = new Car("Existing", 90, 2015);
         service.add(existing);
 
@@ -80,7 +81,7 @@ class ConsoleMenuTest {
     void rejectsInvalidPathBeforeLoading(String path) {
         CarService service = new CarService(source -> {
             throw new AssertionError("Загрузчик не должен вызываться");
-        });
+        }, new ArrayList<>());
 
         String output = run("2\n" + path + "\n0\n", service);
 
@@ -110,6 +111,116 @@ class ConsoleMenuTest {
         assertTrue(output.contains("Минимальная мощность не может быть отрицательной"));
         assertTrue(output.contains("Подходящие автомобили не найдены."));
         assertTrue(output.contains("Работа завершена."));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 3})
+    void showsCarByOneBasedNumberWithoutChangingStorage(int number) {
+        CarService service = emptyService();
+        List<Car> cars = List.of(new Car("First", 100, 2018),
+                new Car("Middle", 120, 2019), new Car("Last", 150, 2020));
+        cars.forEach(service::add);
+
+        String output = run("5\n" + number + "\n0\n", service);
+
+        Car selected = cars.get(number - 1);
+        assertTrue(output.contains(number + ". " + selected.model() + " — "
+                + selected.powerHp() + " л. с., " + selected.year() + " г."));
+        assertFalse(output.contains("2. Middle —"));
+        assertEquals(cars, service.getAll());
+        assertTrue(output.contains("Работа завершена."));
+    }
+
+    @Test
+    void removesOnlySelectedDuplicateAndUsesNewNumbersAndCount() {
+        CarService service = emptyService();
+        Car duplicate = new Car("Vesta", 106, 2020);
+        Car last = new Car("Camry", 181, 2019);
+        service.add(duplicate);
+        service.add(duplicate);
+        service.add(last);
+
+        String output = run("7\n6\n2\n7\n5\n2\n3\n0\n", service);
+
+        assertEquals(List.of(duplicate, last), service.getAll());
+        assertTrue(output.contains("Удалён автомобиль: Vesta."));
+        assertTrue(output.contains("Количество автомобилей: 3"));
+        assertTrue(output.contains("Количество автомобилей: 2"));
+        assertTrue(output.contains("1. Vesta — 106 л. с., 2020 г."));
+        assertTrue(output.contains("2. Camry — 181 л. с., 2019 г."));
+        assertTrue(output.contains("Работа завершена."));
+    }
+
+    @Test
+    void removesFirstAndLastCarsUntilEmptyAndAllowsAddingAgain() {
+        CarService service = emptyService();
+        service.add(new Car("First", 100, 2018));
+        service.add(new Car("Middle", 120, 2019));
+        service.add(new Car("Last", 150, 2020));
+
+        String output = run("6\n1\n6\n2\n6\n1\n7\n3\n"
+                + "1\nNew\n110\n2021\n5\n1\n0\n", service);
+
+        assertTrue(output.contains("Удалён автомобиль: First."));
+        assertTrue(output.contains("Удалён автомобиль: Last."));
+        assertTrue(output.contains("Удалён автомобиль: Middle."));
+        assertTrue(output.contains("Количество автомобилей: 0"));
+        assertTrue(output.contains("Список автомобилей пуст."));
+        assertTrue(output.contains("1. New — 110 л. с., 2021 г."));
+        assertEquals(List.of(new Car("New", 110, 2021)), service.getAll());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "-1", "3", "2147483647", "-2147483648"})
+    void invalidCarNumberDoesNotChangeStorageAndMenuContinues(String number) {
+        CarService service = emptyService();
+        List<Car> cars = List.of(new Car("Vesta", 106, 2020), new Car("Camry", 181, 2019));
+        cars.forEach(service::add);
+
+        String output = run("5\n" + number + "\n6\n" + number + "\n7\n0\n", service);
+
+        assertEquals(cars, service.getAll());
+        assertEquals(2, output.split("Ошибка: Номер автомобиля должен быть от 1 до 2", -1).length - 1);
+        assertTrue(output.contains("Количество автомобилей: 2"));
+        assertTrue(output.contains("Работа завершена."));
+    }
+
+    @Test
+    void retriesNonNumericCarNumberBeforeViewingAndRemoving() {
+        CarService service = emptyService();
+        Car car = new Car("Vesta", 106, 2020);
+        service.add(car);
+
+        String output = run("5\nwrong\n2147483648\n1\n6\nwrong\n1\n7\n0\n", service);
+
+        assertTrue(output.contains("Ошибка: введите целое число."));
+        assertTrue(output.contains("1. Vesta — 106 л. с., 2020 г."));
+        assertTrue(output.contains("Удалён автомобиль: Vesta."));
+        assertTrue(output.contains("Количество автомобилей: 0"));
+        assertTrue(service.getAll().isEmpty());
+    }
+
+    @Test
+    void emptyStorageDoesNotAskForCarNumber() {
+        String output = run("5\n6\n7\n0\n", emptyService());
+
+        assertEquals(2, output.split("Список автомобилей пуст.", -1).length - 1);
+        assertFalse(output.contains("Номер автомобиля: "));
+        assertTrue(output.contains("Количество автомобилей: 0"));
+        assertTrue(output.contains("Работа завершена."));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"5\n", "6\n"})
+    void endOfInputWhileChoosingCarLeavesStorageUnchanged(String input) {
+        CarService service = emptyService();
+        Car car = new Car("Vesta", 106, 2020);
+        service.add(car);
+
+        String output = run(input, service);
+
+        assertTrue(output.contains("Ввод завершён."));
+        assertEquals(List.of(car), service.getAll());
     }
 
     @Test
@@ -154,7 +265,7 @@ class ConsoleMenuTest {
     }
 
     private CarService emptyService() {
-        return new CarService(path -> List.of());
+        return new CarService(path -> List.of(), new ArrayList<>());
     }
 
     private String run(String input, CarService service) {
