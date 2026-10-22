@@ -1,6 +1,6 @@
 package infrastructure;
 
-import application.SortAlgorithm;
+import application.port.SortAlgorithm;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;

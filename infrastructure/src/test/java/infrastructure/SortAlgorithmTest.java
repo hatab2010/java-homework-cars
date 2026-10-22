@@ -1,6 +1,6 @@
 package infrastructure;
 
-import application.SortAlgorithm;
+import application.port.SortAlgorithm;
 import domain.Car;
 import java.util.ArrayList;
 import java.util.Arrays;
