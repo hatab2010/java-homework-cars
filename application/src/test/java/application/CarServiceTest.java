@@ -1,9 +1,13 @@
 package application;
 
+import application.port.SortAlgorithm;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import domain.Car;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -208,5 +212,80 @@ class CarServiceTest {
         storage.add(null);
 
         assertThrows(NullPointerException.class, () -> new CarService(path -> List.of(), storage));
+    }
+
+    @ParameterizedTest
+    @EnumSource(SortDirection.class)
+    void sortsIndependentSnapshotUsingProvidedAlgorithmAndDirection(SortDirection direction) {
+        Car newer = new Car("Newer", 200, 2022);
+        Car firstEqual = new Car("First equal", 100, 2020);
+        Car older = new Car("Older", 90, 2018);
+        Car secondEqual = new Car("Second equal", 120, 2020);
+        List<Car> original = List.of(newer, firstEqual, older, secondEqual);
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
+        original.forEach(service::add);
+        RecordingSortAlgorithm algorithm = new RecordingSortAlgorithm();
+
+        List<Car> result = service.getSortedByYear(algorithm, direction);
+
+        List<Car> expected = direction == SortDirection.ASCENDING
+                ? List.of(older, firstEqual, secondEqual, newer)
+                : List.of(newer, firstEqual, secondEqual, older);
+        assertEquals(expected, result);
+        assertEquals(1, algorithm.calls);
+        assertEquals(original, service.getAll());
+        assertEquals(newer, service.get(0));
+        assertThrows(UnsupportedOperationException.class, result::clear);
+        service.remove(0);
+        assertEquals(expected, result);
+    }
+
+    @Test
+    void sortsEmptySnapshot() {
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
+        RecordingSortAlgorithm algorithm = new RecordingSortAlgorithm();
+
+        assertTrue(service.getSortedByYear(algorithm, SortDirection.ASCENDING).isEmpty());
+        assertEquals(1, algorithm.calls);
+        assertEquals(0, service.size());
+    }
+
+    @Test
+    void algorithmFailureCannotChangeMainStorage() {
+        Car car = new Car("Vesta", 106, 2020);
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
+        service.add(car);
+        SortAlgorithm failing = new SortAlgorithm() {
+            @Override
+            public <T> void sort(List<T> items, Comparator<? super T> comparator) {
+                items.clear();
+                throw new IllegalArgumentException("Ошибка сортировки");
+            }
+        };
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.getSortedByYear(failing, SortDirection.ASCENDING));
+        assertEquals(List.of(car), service.getAll());
+    }
+
+    @Test
+    void rejectsMissingSortingArgumentsWithoutCallingAlgorithm() {
+        CarService service = new CarService(path -> List.of(), new ArrayList<>());
+        RecordingSortAlgorithm algorithm = new RecordingSortAlgorithm();
+
+        assertThrows(NullPointerException.class,
+                () -> service.getSortedByYear(null, SortDirection.ASCENDING));
+        assertThrows(NullPointerException.class, () -> service.getSortedByYear(algorithm, null));
+        assertEquals(0, algorithm.calls);
+    }
+
+    private static final class RecordingSortAlgorithm implements SortAlgorithm {
+        private int calls;
+
+        @Override
+        public <T> void sort(List<T> items, Comparator<? super T> comparator) {
+            calls++;
+            items.sort(comparator);
+        }
     }
 }

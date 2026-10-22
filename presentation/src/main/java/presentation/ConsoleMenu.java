@@ -2,6 +2,8 @@ package presentation;
 
 import application.CarLoadException;
 import application.CarService;
+import application.SortDirection;
+import application.port.SortAlgorithm;
 import domain.Car;
 import java.io.BufferedReader;
 import java.io.EOFException;
@@ -15,11 +17,16 @@ import java.util.Objects;
 /** Консольный адаптер. Переданные потоки остаются во владении вызывающего кода. */
 public final class ConsoleMenu {
     private final CarService service;
+    private final SortAlgorithm bubbleSort;
+    private final SortAlgorithm insertionSort;
     private final BufferedReader input;
     private final PrintWriter output;
 
-    public ConsoleMenu(CarService service, Reader input, PrintWriter output) {
+    public ConsoleMenu(CarService service, SortAlgorithm bubbleSort, SortAlgorithm insertionSort,
+                       Reader input, PrintWriter output) {
         this.service = Objects.requireNonNull(service);
+        this.bubbleSort = Objects.requireNonNull(bubbleSort);
+        this.insertionSort = Objects.requireNonNull(insertionSort);
         this.input = new BufferedReader(Objects.requireNonNull(input));
         this.output = Objects.requireNonNull(output);
     }
@@ -38,11 +45,12 @@ public final class ConsoleMenu {
                         case "5" -> showCar();
                         case "6" -> removeCar();
                         case "7" -> output.println("Количество автомобилей: " + service.size());
+                        case "8" -> sortCars();
                         case "0" -> {
                             output.println("Работа завершена.");
                             return;
                         }
-                        default -> output.println("Неизвестная команда. Выберите пункт от 0 до 7.");
+                        default -> output.println("Неизвестная команда. Выберите пункт от 0 до 8.");
                     }
                 } catch (CarLoadException | IllegalArgumentException error) {
                     output.println("Ошибка: " + error.getMessage());
@@ -67,6 +75,7 @@ public final class ConsoleMenu {
         output.println("5. Показать автомобиль по номеру");
         output.println("6. Удалить автомобиль по номеру");
         output.println("7. Показать количество автомобилей");
+        output.println("8. Отсортировать по году с выбором алгоритма");
         output.println("0. Выход");
     }
 
@@ -138,6 +147,34 @@ public final class ConsoleMenu {
         }
         output.println("Модели по году выпуска, от старых к новым:");
         models.forEach(output::println);
+    }
+
+    private void sortCars() throws IOException {
+        if (service.size() == 0) {
+            output.println("Список автомобилей пуст.");
+            return;
+        }
+        output.println("Алгоритм сортировки:");
+        output.println("1. Пузырьковая сортировка");
+        output.println("2. Сортировка вставками");
+        SortAlgorithm algorithm = switch (readInteger("Выберите алгоритм: ")) {
+            case 1 -> bubbleSort;
+            case 2 -> insertionSort;
+            default -> throw new IllegalArgumentException("Выберите алгоритм 1 или 2");
+        };
+        output.println("Направление сортировки:");
+        output.println("1. По возрастанию года");
+        output.println("2. По убыванию года");
+        SortDirection direction = switch (readInteger("Выберите направление: ")) {
+            case 1 -> SortDirection.ASCENDING;
+            case 2 -> SortDirection.DESCENDING;
+            default -> throw new IllegalArgumentException("Выберите направление 1 или 2");
+        };
+        List<Car> sorted = service.getSortedByYear(algorithm, direction);
+        output.println("Автомобили по году выпуска ("
+                + (direction == SortDirection.ASCENDING ? "по возрастанию" : "по убыванию") + "):");
+        sorted.forEach(car -> output.printf("%s — %d л. с., %d г.%n",
+                car.model(), car.powerHp(), car.year()));
     }
 
     private String readLine(String prompt) throws IOException {
